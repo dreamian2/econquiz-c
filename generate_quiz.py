@@ -90,7 +90,7 @@ def generate():
     client = anthropic.Anthropic()
     print(f"🤖 [{today}] 퀴즈 생성 시작...")
     msg = client.messages.create(
-        model="claude-opus-4-6",
+        model="claude-haiku-4-5-20251001",
         max_tokens=5000,
         messages=[{"role": "user", "content": PROMPT}]
     )
