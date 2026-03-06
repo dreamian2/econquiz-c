@@ -3,7 +3,7 @@
 // 역할: 앱 파일을 캐시해서 오프라인에서도 동작하게 함
 // ─────────────────────────────────────────
 
-const CACHE_NAME = 'economy-quiz-v1';
+const CACHE_NAME = 'economy-quiz-v2';  // 버전 올리면 낡은 캐시 자동 삭제
 
 // 오프라인에서도 쓸 수 있도록 저장할 파일 목록
 const ASSETS = [
@@ -46,18 +46,13 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// ── 요청 처리: 캐시 우선 → 없으면 네트워크 ──
+// ── 요청 처리 ──
 self.addEventListener('fetch', event => {
-  // quiz_*.json 파일은 항상 최신으로 (네트워크 우선)
-  if (event.request.url.includes('quiz_')) {
+  // quiz_today.json — 캐시 절대 사용 안 함, 항상 최신 파일로
+  if (event.request.url.includes('quiz_today.json')) {
     event.respondWith(
-      fetch(event.request)
-        .then(res => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-          return res;
-        })
-        .catch(() => caches.match(event.request))
+      fetch(event.request.url + '?t=' + Date.now(), { cache: 'no-store' })
+        .catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } }))
     );
     return;
   }
