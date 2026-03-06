@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>오늘의 경제 퀴즈</title>
+
+<!-- PWA 설정 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d0f1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="경제퀴즈">
+<link rel="apple-touch-icon" href="icon-192.png">
+
 <link href="https://fonts.googleapis.com/css2?family=Gmarket+Sans:wght@300;500;700&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -706,6 +715,14 @@ render();
 //   render();
 // }
 // loadQuiz();
+</script>
+<!-- PWA Service Worker 등록 -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('✅ Service Worker 등록 완료'))
+      .catch(e => console.log('Service Worker 오류:', e));
+  }
 </script>
 </body>
 </html>
