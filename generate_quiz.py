@@ -110,12 +110,42 @@ def generate():
         tools=[{"type": "web_search_20250305", "name": "web_search"}],
         messages=[{"role": "user", "content": PROMPT}]
     )
-    # 텍스트 블록만 추출
-    raw = ''.join(b.text for b in msg.content if hasattr(b, 'text'))
-    match = re.search(r'\{[\s\S]*\}', raw)
-    if not match:
-        raise ValueError("JSON 파싱 실패. 응답:\n" + raw[:500])
-    data = json.loads(match.group())
+
+    # text 블록만 모으되, 가장 긴 것(=최종 JSON 응답)을 사용
+    texts = [b.text for b in msg.content if hasattr(b, 'text') and b.text.strip()]
+    if not texts:
+        raise ValueError("텍스트 응답 없음. content 타입: " + str([b.type for b in msg.content]))
+
+    # 가장 긴 텍스트 블록이 최종 JSON일 가능성이 높음
+    raw = max(texts, key=len)
+    print(f"📄 응답 길이: {len(raw)}자")
+
+    # JSON 블록 추출 — 중첩 중괄호까지 정확히 매칭
+    start = raw.find('{')
+    if start == -1:
+        raise ValueError("JSON 시작 { 없음. 응답:\n" + raw[:300])
+
+    depth, end = 0, -1
+    for i, ch in enumerate(raw[start:], start):
+        if ch == '{': depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0:
+                end = i + 1
+                break
+
+    if end == -1:
+        raise ValueError("JSON 끝 } 없음. 응답:\n" + raw[:300])
+
+    json_str = raw[start:end]
+
+    try:
+        data = json.loads(json_str)
+    except json.JSONDecodeError as e:
+        # 특수문자·개행 이슈 시 완화 시도
+        json_str_clean = json_str.replace('\n', ' ').replace('\r', '')
+        data = json.loads(json_str_clean)
+
     assert len(data['quizzes']) == 5, f"퀴즈 5개 필요. 실제: {len(data['quizzes'])}개"
     for q in data['quizzes']:
         assert 'context' in q and len(q['context']) > 50, f"context 너무 짧음: {q.get('context','')}"
