@@ -44,6 +44,6 @@ jobs:
         run: |
           git config user.name  "quiz-bot"
           git config user.email "quiz-bot@github-actions"
-          git add quiz_today.json
-          git diff --staged --quiet || git commit -m "🗞️ $(date '+%Y-%m-%d') 오늘의 퀴즈 업데이트"
+          git add -f quiz_today.json
+          git commit -m "🗞️ $(date '+%Y-%m-%d') 오늘의 퀴즈 업데이트" || echo "변경사항 없음"
           git push
