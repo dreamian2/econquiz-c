@@ -32,17 +32,21 @@ PROMPT = f"""
 5. 최고급 (lv-master) — 여러 개념 연결 추론 (A가 B가 되면 C는 어떻게 될까?)
 
 [context 필드 — 배경 설명] ★ 가장 중요
-- 반드시 2~4문장으로 작성할 것. 
+- 반드시 3~4문장으로 작성할 것. 절대 1~2문장으로 줄이지 말 것.
 - 독자가 해당 뉴스를 전혀 모른다고 가정하고 설명
 - 포함할 내용:
-  ① 무슨 일이 있었는지 (사건/수치 포함)
+  ① 무슨 일이 있었는지 (사건/배경 설명)
   ② 왜 이게 중요한지 (우리 생활과의 연결고리)
   ③ 현재 상황이 어떤지 (배경 맥락)
-- 예시:
-  "미국 연방준비제도(연준)가 기준금리를 0.25%p 인상해 5.5%로 올렸습니다.
-   기준금리는 은행들이 서로 돈을 빌릴 때 적용하는 금리로, 이게 오르면
-   대출 이자도 따라 올라요. 한국도 미국 금리 영향을 받기 때문에
-   우리 주담대·카드론 금리에도 곧 영향이 올 수 있어요."
+- ★ 절대 금지: context 안에 정답이나 오답 보기에 해당하는 수치·단어를 직접 언급하지 말 것
+  예) 정답이 "13% 상승"이라면 context에서 "13%"를 언급하지 말 것
+  예) 정답이 "금리 인상"이라면 context에서 "금리를 올렸다"고 쓰지 말 것
+  → 대신 "얼마나 변했는지가 이번 퀴즈의 핵심이에요" 같은 식으로 궁금증 유발
+- 예시 (정답이 "0.25%p 인상"인 경우):
+  "미국 연방준비제도(연준)가 이번 달 기준금리를 조정했습니다.
+   기준금리는 은행들이 서로 돈을 빌릴 때 적용하는 금리예요.
+   이 결정이 우리 대출 이자와 환율에도 영향을 줄 수 있어서 전 세계가 주목했어요.
+   과연 연준은 어떤 결정을 내렸을까요?"
 
 [q 필드 — 질문]
 - 30자 이내로 명확하게
@@ -71,9 +75,11 @@ PROMPT = f"""
 - "~해요" "~거든요" "~이에요" "~답니다" 말투 혼용
 
 [article_url / article_title 필드]
-- 해당 뉴스를 다룬 한국 언론사 기사 URL 1개
-- 연합뉴스·한국경제·매일경제·조선일보·한겨레 등
-- 실제 존재하는 URL을 하이퍼링크 형식으로
+- 반드시 web_search 도구로 실제 기사를 검색해서 존재하는 URL만 사용할 것
+- 검색어 예: "연합뉴스 호르무즈 봉쇄 2026" 또는 "한국경제 코스피 폭락 2026"
+- 검색 결과에서 실제로 확인된 URL만 article_url에 넣을 것
+- 추측하거나 URL을 임의로 만들지 말 것. 확인된 URL이 없으면 article_url을 null로 설정
+- 기사 제목도 실제 기사 제목 그대로 article_title에 저장
 
 [출력] JSON만, 다른 텍스트 없이:
 {{
@@ -87,7 +93,7 @@ PROMPT = f"""
       "opts": ["보기1", "보기2", "보기3", "보기4"],
       "ans": 0,
       "exp": "한 줄 해설 HTML (3문장 이내)",
-      "expert_detail": "전문가 해설 HTML (3문단, 350~500자)",
+      "expert_detail": "전문가 해설 HTML (3문단, 350~450자)",
       "article_title": "관련 기사 제목",
       "article_url": "https://..."
     }}
@@ -101,16 +107,18 @@ def generate():
     msg = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=6000,
+        tools=[{"type": "web_search_20250305", "name": "web_search"}],
         messages=[{"role": "user", "content": PROMPT}]
     )
-    raw = msg.content[0].text
+    # 텍스트 블록만 추출
+    raw = ''.join(b.text for b in msg.content if hasattr(b, 'text'))
     match = re.search(r'\{[\s\S]*\}', raw)
     if not match:
         raise ValueError("JSON 파싱 실패. 응답:\n" + raw[:500])
     data = json.loads(match.group())
     assert len(data['quizzes']) == 5, f"퀴즈 5개 필요. 실제: {len(data['quizzes'])}개"
     for q in data['quizzes']:
-        assert 'context' in q and len(q['context']) > 50, f"context가 너무 짧아요: {q.get('context','')}"
+        assert 'context' in q and len(q['context']) > 50, f"context 너무 짧음: {q.get('context','')}"
         assert len(q['opts']) == 4 and 0 <= q['ans'] <= 3
     return data
 
