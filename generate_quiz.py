@@ -2,12 +2,6 @@
 generate_quiz.py
 ─────────────────────────────────────
 GitHub Actions가 매일 오전 6시에 실행하는 스크립트.
-최신 경제 뉴스를 기반으로 퀴즈 5개를 생성하고
-quiz_today.json 파일로 저장합니다.
-
-로컬 테스트:
-  export ANTHROPIC_API_KEY="sk-..."
-  python generate_quiz.py
 """
 
 import anthropic
@@ -31,40 +25,55 @@ PROMPT = f"""
 - 숫자/금액이 등장하거나 인과관계가 명확한 것
 
 [난이도 구성] 순서 그대로 1개씩
-1. 입문 (lv-easy)     — "얼마?" "누가?" 단순 사실 확인
-2. 초급 (lv-mid)      — "왜?" 원인 묻기
-3. 중급 (lv-hard)     — 결과·영향 묻기
-4. 고급 (lv-expert)   — 경제 메커니즘 묻기
-5. 최고급 (lv-master)  — 여러 개념 연결 추론
+1. 입문 (lv-easy)    — 단순 사실 확인 (얼마? 누가? 몇 %?)
+2. 초급 (lv-mid)     — 원인 묻기 (왜 이런 일이 생겼을까?)
+3. 중급 (lv-hard)    — 결과·영향 묻기 (이게 우리 생활에 어떤 영향을?)
+4. 고급 (lv-expert)  — 경제 메커니즘 묻기 (어떤 원리로 이런 일이?)
+5. 최고급 (lv-master) — 여러 개념 연결 추론 (A가 B가 되면 C는 어떻게 될까?)
 
-[질문 규칙]
-- 질문 앞에 1~2줄 배경 설명을 붙여서 맥락을 줄 것
-  예) "2월 미국 CPI가 예상보다 높게 나왔습니다. 이때 연준이 금리를 올리면 어떤 일이 생길까요?"
-  배경 설명은 context 필드에 따로 저장
-- 질문 자체(q)는 15자 이내, 짧고 임팩트 있게
-- 4지선다, 정답 1개, 오답은 그럴듯하게
-- 난이도가 올라갈수록 배경 설명도 조금씩 더 구체적으로
+[context 필드 — 배경 설명] ★ 가장 중요
+- 반드시 2~4문장으로 작성할 것. 
+- 독자가 해당 뉴스를 전혀 모른다고 가정하고 설명
+- 포함할 내용:
+  ① 무슨 일이 있었는지 (사건/수치 포함)
+  ② 왜 이게 중요한지 (우리 생활과의 연결고리)
+  ③ 현재 상황이 어떤지 (배경 맥락)
+- 예시:
+  "미국 연방준비제도(연준)가 기준금리를 0.25%p 인상해 5.5%로 올렸습니다.
+   기준금리는 은행들이 서로 돈을 빌릴 때 적용하는 금리로, 이게 오르면
+   대출 이자도 따라 올라요. 한국도 미국 금리 영향을 받기 때문에
+   우리 주담대·카드론 금리에도 곧 영향이 올 수 있어요."
 
-[관련 기사 링크 (article_url)]
-- 해당 뉴스를 다룬 실제 기사 URL을 1개 제공
-- 한국 언론사 우선 (연합뉴스, 한국경제, 조선일보, 매일경제 등)
-- 실제로 존재할 가능성이 높은 URL 형식으로 작성
-- 기사 제목도 article_title 필드에 함께 저장
+[q 필드 — 질문]
+- 30자 이내로 명확하게
+- context를 읽은 사람이 "오, 이거 알 것 같은데?" 하는 느낌으로
+- 4지선다, 정답 1개, 오답 3개는 헷갈리게
 
-[한 줄 해설 (exp)]
-- 2문장 이내, 핵심 키워드 1개만 <strong> 강조
-- 생활 비유 1개 포함, "~해요" 말투
+[opts 필드 — 보기]
+- 각 보기는 10~20자 내외로 구체적으로
+- 오답도 "그럴 것 같은" 숫자나 이유를 넣어서 그럴듯하게
 
-[전문가 해설 (expert_detail)] 모든 문제 필수
-경제학 박사가 이론과 실제를 함께 설명:
+[exp 필드 — 한 줄 해설]
+- 3문장 이내
+- 핵심 키워드 1~2개 <strong> 강조
+- 정답인 이유 + 생활 속 비유 1개
+- "~해요" 말투
+
+[expert_detail 필드 — 전문가 해설] 모든 문제 필수
+경제학 박사가 이론과 실제를 함께 알기 쉽게 설명:
 - <span class="expert-label">🎓 박사의 한마디</span> 로 시작
-- <p> 태그 2~3개 문단
-- 문단1: 경제학 이론명 + 쉬운 풀이 (전문용어 뒤 반드시 괄호로 쉬운 설명)
-- 문단2: 실제 사례 또는 역사적 선례로 연결
-- 마지막: <p class="takeaway"> 핵심 한 줄 정리
-- <strong>으로 핵심 개념 강조
-- "~해요" "~거든요" "~이에요" 말투
-- 250~350자 내외로 충분히 설명
+- <p> 태그로 정확히 3개 문단 구성
+- 문단1: 관련 경제학 이론 이름 소개 + 괄호 안에 쉬운 풀이
+  예: "<strong>수요-공급 법칙(Demand-Supply Law)</strong>에 따르면..."
+- 문단2: 역사적 실제 사례 1개 (연도, 나라, 구체적 수치 포함)
+- 문단3: <p class="takeaway"> 오늘 기사와 연결한 핵심 한 줄 정리
+- 전체 350~450자 내외로 충분히 설명
+- "~해요" "~거든요" "~이에요" "~답니다" 말투 혼용
+
+[article_url / article_title 필드]
+- 해당 뉴스를 다룬 한국 언론사 기사 URL 1개
+- 연합뉴스·한국경제·매일경제·조선일보·한겨레 등
+- 실제 존재하는 URL을 하이퍼링크 형식으로
 
 [출력] JSON만, 다른 텍스트 없이:
 {{
@@ -73,12 +82,12 @@ PROMPT = f"""
     {{
       "levelClass": "lv-easy",
       "source": "{today_display} · 출처명",
-      "context": "1~2줄 배경 설명. 뉴스의 핵심 사실을 독자가 모른다고 가정하고 설명.",
-      "q": "질문 (15자 이내)",
+      "context": "3~4문장 배경 설명 (독자가 뉴스를 모른다고 가정)",
+      "q": "질문 (30자 이내)",
       "opts": ["보기1", "보기2", "보기3", "보기4"],
       "ans": 0,
-      "exp": "한 줄 해설 HTML",
-      "expert_detail": "전문가 해설 HTML",
+      "exp": "한 줄 해설 HTML (3문장 이내)",
+      "expert_detail": "전문가 해설 HTML (3문단, 350~500자)",
       "article_title": "관련 기사 제목",
       "article_url": "https://..."
     }}
@@ -91,7 +100,7 @@ def generate():
     print(f"🤖 [{today}] 퀴즈 생성 시작...")
     msg = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=5000,
+        max_tokens=6000,
         messages=[{"role": "user", "content": PROMPT}]
     )
     raw = msg.content[0].text
@@ -101,6 +110,7 @@ def generate():
     data = json.loads(match.group())
     assert len(data['quizzes']) == 5, f"퀴즈 5개 필요. 실제: {len(data['quizzes'])}개"
     for q in data['quizzes']:
+        assert 'context' in q and len(q['context']) > 50, f"context가 너무 짧아요: {q.get('context','')}"
         assert len(q['opts']) == 4 and 0 <= q['ans'] <= 3
     return data
 
@@ -112,8 +122,7 @@ def save(data):
     print(f"✅ quiz_today.json 저장 완료 — 퀴즈 {len(data['quizzes'])}개")
     for i, q in enumerate(data['quizzes'], 1):
         print(f"  {i}. [{levels.get(q['levelClass'], q['levelClass'])}] {q['q']}")
-        if q.get('article_url'):
-            print(f"      🔗 {q['article_url']}")
+        print(f"      📝 {q.get('context','')[:40]}...")
 
 if __name__ == '__main__':
     if not os.environ.get('ANTHROPIC_API_KEY'):
