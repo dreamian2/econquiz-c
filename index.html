@@ -281,14 +281,8 @@
   <div class="loading" id="loadingArea">
     <div class="spinner"></div>
     <div>
-      <div class="loading-title">오늘의 퀴즈 준비 중...</div>
-      <div class="loading-sub">최신 뉴스를 읽고 퀴즈를 만들고 있어요</div>
-    </div>
-    <div class="loading-steps">
-      <div class="step active" id="step1"><span class="step-icon">📰</span> 최신 뉴스 분석 중</div>
-      <div class="step"        id="step2"><span class="step-icon">🧠</span> 퀴즈 5문제 생성 중</div>
-      <div class="step"        id="step3"><span class="step-icon">📖</span> 전문가 해설 작성 중</div>
-      <div class="step"        id="step4"><span class="step-icon">✅</span> 완료!</div>
+      <div class="loading-title">퀴즈 불러오는 중...</div>
+      <div class="loading-sub">잠깐만요, 금방 돼요 ☕</div>
     </div>
   </div>
 
@@ -338,138 +332,12 @@
 
 <script>
 // ═══════════════════════════════════════
-// 오늘의 뉴스 (매일 이 부분만 업데이트)
-// ═══════════════════════════════════════
-const TODAY_NEWS = `
-[2026년 3월 첫째 주 주요 경제 뉴스]
-
-1. 호르무즈 해협 봉쇄 위기
-   - 미·이스라엘의 이란 공습으로 호르무즈 해협 봉쇄 위협
-   - 전 세계 원유 수송량의 약 20%가 이 해협 통과
-   - 브렌트유 배럴당 80달러 돌파, 13% 이상 급등
-
-2. 코스피·환율 패닉
-   - 코스피 하루 433포인트(7.49%) 폭락 → 5,358 마감
-   - 원·달러 환율 1,500원 돌파 (금융위기 이후 최초)
-   - 코스닥 사이드카 발동 (7.83% 급락)
-
-3. 금값 사상 최고치
-   - 현물 금 온스당 5,376달러 기록
-   - 전쟁·불확실성 커질수록 금값 상승하는 이유: 안전자산
-
-4. 미국 대법원 "트럼프 관세는 위헌" 판결
-   - IEEPA(국제경제비상권한법) 이용 관세 부과가 권한 초과
-   - 트럼프 행정부, 대안 모색 중
-
-5. 중국 제조업 PMI 49 — 2개월 연속 위축
-   - PMI 50 이하 = 경기 수축 신호
-   - 내수 부진 + 수출 불확실성 겹쳐
-`;
-
-// ═══════════════════════════════════════
-// Claude API 호출 → 퀴즈 자동 생성
-// ═══════════════════════════════════════
-const PROMPT = `
-아래 최신 경제 뉴스를 읽고, 퀴즈 5개를 JSON 형식으로 만들어줘.
-
-[오늘의 뉴스]
-${TODAY_NEWS}
-
-[난이도 구성] — 각 1개씩, 순서 그대로
-1. 입문 (lv-easy)  — "얼마?" "누가?" 단순 사실
-2. 초급 (lv-mid)   — 원인 묻기 "왜?"
-3. 중급 (lv-hard)  — 결과·영향 묻기
-4. 고급 (lv-expert)— 경제 메커니즘 묻기
-5. 최고급 (lv-master)— 개념 연결 추론
-
-[질문 규칙]
-- 15자 이내, 짧고 임팩트 있게
-- 4지선다, 정답 1개, 오답은 그럴듯하게
-
-[한 줄 해설 (exp)]
-- 2문장 이내, 핵심 키워드 1개만 <strong> 태그로 강조
-- 생활 비유 1개 포함, "~해요" 말투
-
-[전문가 해설 (expert_detail)] — 모든 문제에 작성
-경제학 박사가 이론과 실제를 함께 설명하는 방식으로:
-- <span class="expert-label">🎓 박사의 한마디</span> 로 시작
-- <p> 태그로 2~3개 문단 구성
-- 문단1: 경제학 이론 이름 + 쉬운 설명 (전문용어 뒤에 반드시 괄호로 쉬운 풀이)
-- 문단2: 실제 사례나 역사적 선례로 연결
-- 마지막 문단: <p class="takeaway"> 로 핵심 한 줄 정리
-- <strong> 태그로 핵심 개념 강조
-- 톤: 딱딱하지 않게, "~해요" "~거든요" "~이에요" 말투
-- 길이: 200~300자 내외
-
-[출력] 반드시 JSON만, 다른 텍스트 없이:
-{
-  "date": "오늘날짜(YYYY-MM-DD)",
-  "quizzes": [
-    {
-      "levelClass": "lv-easy",
-      "source": "2026.03.06 · 출처",
-      "q": "질문 (15자 이내)",
-      "opts": ["보기1", "보기2", "보기3", "보기4"],
-      "ans": 0,
-      "exp": "한 줄 해설 HTML",
-      "expert_detail": "전문가 해설 HTML"
-    }
-  ]
-}
-`;
-
-// ═══════════════════════════════════════
 // 상태
 // ═══════════════════════════════════════
 let quizzes = [], cur = 0, score = 0;
 
 // ═══════════════════════════════════════
-// 로딩 애니메이션
-// ═══════════════════════════════════════
-function setStep(i, cls) {
-  const ids = ['step1','step2','step3','step4'];
-  if (ids[i]) document.getElementById(ids[i]).className = 'step ' + cls;
-}
-
-async function animateSteps(durationMs) {
-  const steps = ['step1','step2','step3','step4'];
-  const interval = durationMs / steps.length;
-  for (let i = 0; i < steps.length; i++) {
-    await new Promise(r => setTimeout(r, interval));
-    if (i > 0) {
-      document.getElementById(steps[i-1]).className = 'step done';
-      document.getElementById(steps[i-1]).querySelector('.step-icon').textContent = '✓';
-    }
-    if (i < steps.length - 1)
-      document.getElementById(steps[i]).className = 'step active';
-    else
-      document.getElementById(steps[i]).className = 'step done';
-  }
-}
-
-// ═══════════════════════════════════════
-// Claude API 호출
-// ═══════════════════════════════════════
-async function fetchQuiz() {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 3000,
-      messages: [{ role: 'user', content: PROMPT }]
-    })
-  });
-  if (!res.ok) throw new Error('API 오류: ' + res.status);
-  const data = await res.json();
-  const raw = data.content[0].text;
-  const match = raw.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('JSON 파싱 실패');
-  return JSON.parse(match[0]);
-}
-
-// ═══════════════════════════════════════
-// 초기화 — quiz_today.json 우선, 없으면 API 직접 호출
+// 초기화 — quiz_today.json 만 사용 (API 직접 호출 없음)
 // ═══════════════════════════════════════
 async function init() {
   const d = new Date();
@@ -477,15 +345,7 @@ async function init() {
     `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} · 오늘의 5문제`;
 
   try {
-    // ① quiz_today.json 먼저 시도 (GitHub Actions가 매일 생성)
-    let data = await loadJSON();
-
-    // ② JSON 없으면 Claude API 직접 호출 (fallback)
-    if (!data) {
-      updateStep(0);
-      data = await fetchQuizFromAPI();
-    }
-
+    const data = await loadJSON();
     quizzes = data.quizzes;
     document.getElementById('loadingArea').style.display = 'none';
     document.getElementById('quizArea').style.display   = 'block';
@@ -495,41 +355,30 @@ async function init() {
   } catch (e) {
     document.getElementById('loadingArea').innerHTML = `
       <div style="text-align:center;padding:40px 20px">
-        <div style="font-size:40px;margin-bottom:16px">😥</div>
-        <div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:8px">퀴즈 로딩 실패</div>
-        <div style="font-size:13px;color:var(--sub);margin-bottom:20px">${e.message}</div>
-        <button onclick="location.reload()" style="padding:12px 28px;background:var(--accent);color:#000;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer">다시 시도</button>
+        <div style="font-size:48px;margin-bottom:16px">🌅</div>
+        <div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:8px">오늘의 퀴즈 준비 중이에요</div>
+        <div style="font-size:13px;color:var(--sub);line-height:1.7;margin-bottom:24px">
+          매일 오전 6시에 새 퀴즈가 업데이트돼요.<br>잠시 후 다시 열어주세요! 🙏
+        </div>
+        <button onclick="location.reload()" style="padding:12px 28px;background:var(--accent);color:#000;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">새로고침</button>
       </div>`;
   }
 }
 
-// quiz_today.json 로드 시도
+// quiz_today.json 로드 (오늘 날짜 검증 포함)
 async function loadJSON() {
-  try {
-    setStep(0, 'active'); // 뉴스 분석 중
-    const res = await fetch(`quiz_today.json?v=${Date.now()}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    // 오늘 날짜 확인
-    const today = new Date().toISOString().slice(0, 10);
-    if (data.date !== today) {
-      console.log('어제 퀴즈 감지 — API 직접 호출로 전환');
-      return null;
-    }
-    // 로딩 단계 빠르게 완료 표시
-    await animateSteps(1200);
-    return data;
-  } catch {
-    return null;
-  }
-}
+  const res = await fetch(`quiz_today.json?t=${Date.now()}`);
+  if (!res.ok) throw new Error('파일 없음');
 
-// API 직접 호출 (fallback)
-async function fetchQuizFromAPI() {
-  const [data] = await Promise.all([
-    fetchQuiz(),
-    animateSteps(3200)
-  ]);
+  const data = await res.json();
+
+  // 오늘 날짜(한국시간) 확인
+  const kstOffset = 9 * 60;
+  const now = new Date(Date.now() + (kstOffset + new Date().getTimezoneOffset()) * 60000);
+  const today = now.toISOString().slice(0, 10);
+
+  if (data.date !== today) throw new Error('어제 퀴즈');
+
   return data;
 }
 
