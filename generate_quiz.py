@@ -60,6 +60,7 @@ def fetch_news_from_gemini():
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
     payload = json.dumps({
         "contents": [{"parts": [{"text": GEMINI_NEWS_PROMPT}]}],
+        "tools": [{"google_search": {}}],
         "generationConfig": {"temperature": 0.3, "maxOutputTokens": 2000}
     }).encode("utf-8")
 
@@ -72,14 +73,36 @@ def fetch_news_from_gemini():
     with urllib.request.urlopen(req) as res:
         data = json.loads(res.read().decode())
 
-    raw = data["candidates"][0]["content"]["parts"][0]["text"]
+    # 검색 결과가 포함된 응답에서 텍스트만 추출
+    raw = ""
+    for part in data["candidates"][0]["content"]["parts"]:
+        if "text" in part:
+            raw += part["text"]
+
     print(f"  Gemini 응답 길이: {len(raw)}자")
 
-    match = re.search(r'\{[\s\S]*\}', raw)
-    if not match:
-        raise ValueError("Gemini JSON 파싱 실패:\n" + raw[:300])
+    # JSON 블록 정확히 추출 (중첩 중괄호 처리)
+    start = raw.find('{')
+    if start == -1:
+        raise ValueError("Gemini JSON { 없음:\n" + raw[:300])
 
-    news_data = json.loads(match.group())
+    depth, end = 0, -1
+    for i, ch in enumerate(raw[start:], start):
+        if ch == '{': depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0:
+                end = i + 1
+                break
+
+    if end == -1:
+        raise ValueError("Gemini JSON } 없음:\n" + raw[:300])
+
+    try:
+        news_data = json.loads(raw[start:end])
+    except json.JSONDecodeError:
+        cleaned = raw[start:end].replace('\n', ' ').replace('\r', '')
+        news_data = json.loads(cleaned)
     news_list = news_data.get("news", [])
 
     print(f"  ✅ 뉴스 {len(news_list)}개 수집 완료:")
