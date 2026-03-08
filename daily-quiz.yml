@@ -32,6 +32,15 @@ jobs:
       - name: 📦 anthropic 패키지 설치
         run: pip install anthropic
 
+      # 3.5 Secrets 주입 확인 (디버그용 — 확인 후 삭제)
+      - name: 🔍 환경변수 확인
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY:    ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          echo "ANTHROPIC_API_KEY 길이: ${#ANTHROPIC_API_KEY}"
+          echo "GEMINI_API_KEY 길이: ${#GEMINI_API_KEY}"
+
       # 4. 퀴즈 생성 스크립트 실행
       - name: 🤖 퀴즈 생성
         env:
