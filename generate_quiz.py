@@ -61,7 +61,7 @@ def fetch_news_from_gemini():
     payload = json.dumps({
         "contents": [{"parts": [{"text": GEMINI_NEWS_PROMPT}]}],
         "tools": [{"google_search": {}}],
-        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 2000}
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 5000}
     }).encode("utf-8")
 
     req = urllib.request.Request(
